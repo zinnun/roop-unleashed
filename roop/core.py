@@ -158,7 +158,7 @@ def start() -> None:
         # if 'face_enhancer' in roop.globals.frame_processors:
         #     roop.globals.selected_enhancer = 'GFPGAN'
        
-    batch_process(None, False, None)
+    batch_process_regular(None, False, None)
 
 
 def get_processing_plugins(masking_engine):
@@ -197,14 +197,39 @@ def live_swap(frame, options):
     return newframe
 
 
+def batch_process_regular(files:list[ProcessEntry], masking_engine:str, new_clip_text:str, use_new_method, imagemask, num_swap_steps, progress, selected_index = 0) -> None:
+    global clip_text, process_mgr
+
+    release_resources()
+    limit_resources()
+    if process_mgr is None:
+        process_mgr = ProcessMgr(progress)
+    mask = imagemask["layers"][0] if imagemask is not None else None
+    if len(roop.globals.INPUT_FACESETS) <= selected_index:
+        selected_index = 0
+    options = ProcessOptions(get_processing_plugins(masking_engine), roop.globals.distance_threshold, roop.globals.blend_ratio, roop.globals.face_swap_mode, selected_index, new_clip_text, mask, num_swap_steps, False)
+    process_mgr.initialize(roop.globals.INPUT_FACESETS, roop.globals.TARGET_FACES, options)
+    batch_process(files, use_new_method)
+    return
+
+def batch_process_with_options(files:list[ProcessEntry], options, progress):
+    global clip_text, process_mgr
+
+    release_resources()
+    limit_resources()
+    if process_mgr is None:
+        process_mgr = ProcessMgr(progress)
+    process_mgr.initialize(roop.globals.INPUT_FACESETS, roop.globals.TARGET_FACES, options)
+    roop.globals.keep_frames = False
+    roop.globals.wait_after_extraction = False
+    batch_process(files, True)
 
 
-def batch_process(files:list[ProcessEntry], masking_engine:str, new_clip_text:str, use_new_method, imagemask, num_swap_steps, progress, selected_index = 0) -> None:
+
+def batch_process(files:list[ProcessEntry], use_new_method) -> None:
     global clip_text, process_mgr
 
     roop.globals.processing = True
-    release_resources()
-    limit_resources()
 
     # limit threads for some providers
     max_threads = suggest_execution_threads()
@@ -232,13 +257,6 @@ def batch_process(files:list[ProcessEntry], masking_engine:str, new_clip_text:st
             videofiles.append(f)
 
 
-    if process_mgr is None:
-        process_mgr = ProcessMgr(progress)
-    mask = imagemask["layers"][0] if imagemask is not None else None
-    if len(roop.globals.INPUT_FACESETS) <= selected_index:
-        selected_index = 0
-    options = ProcessOptions(get_processing_plugins(masking_engine), roop.globals.distance_threshold, roop.globals.blend_ratio, roop.globals.face_swap_mode, selected_index, new_clip_text, mask, num_swap_steps, False)
-    process_mgr.initialize(roop.globals.INPUT_FACESETS, roop.globals.TARGET_FACES, options)
 
     if(len(imagefiles) > 0):
         update_status('Processing image(s)')

@@ -8,12 +8,6 @@ def extras_tab():
     with gr.Tab("🎉 Extras"):
         with gr.Row():
             files_to_process = gr.Files(label='File(s) to process', file_count="multiple", file_types=["image", "video"])
-        # with gr.Row(variant='panel'):
-        #     with gr.Accordion(label="Post process", open=False):
-        #         with gr.Column():
-        #             selected_post_enhancer = gr.Dropdown(["None", "Codeformer", "GFPGAN"], value="None", label="Select post-processing")
-        #         with gr.Column():
-        #             gr.Button("Start").click(fn=lambda: gr.Info('Not yet implemented...'))
         with gr.Row(variant='panel'):
             with gr.Accordion(label="Video/GIF", open=False):
                 with gr.Row(variant='panel'):
@@ -43,6 +37,14 @@ def extras_tab():
                     with gr.Column():
                         extras_chk_creategif = gr.Checkbox(label='Create GIF from video', value=False)
                         extras_create_video=gr.Button("Create")
+        with gr.Row(variant='panel'):
+            with gr.Accordion(label="Full frame processing", open=False):
+                with gr.Row(variant='panel'):
+                    _ = gr.Dropdown(["None", "Upscaler"], value="None", label="Enhancer", interactive=True)
+                    _ = gr.Dropdown(["None", "Deoldify", "Filter C64"], value="None", label="Colorizer/FilterFX", interactive=True)
+                with gr.Row(variant='panel'):
+                    start_frame_process=gr.Button("Start processing")
+
         with gr.Row():
             gr.Button("👀 Open Output Folder", size='sm').click(fn=lambda: util.open_folder(roop.globals.output_path))
         with gr.Row():
@@ -52,6 +54,7 @@ def extras_tab():
     start_extract_frames.click(fn=on_extras_extract_frames, inputs=[files_to_process], outputs=[extra_files_output])
     start_join_videos.click(fn=on_join_videos, inputs=[files_to_process, extras_chk_encode], outputs=[extra_files_output])
     extras_create_video.click(fn=on_extras_create_video, inputs=[extras_images_folder, extras_fps, extras_chk_creategif], outputs=[extra_files_output])
+    start_frame_process.click(fn=on_frame_process, inputs=[files_to_process], outputs=[extra_files_output])
 
 
 def on_cut_video(files, cut_start_frame, cut_end_frame, reencode):
@@ -119,4 +122,29 @@ def on_extras_extract_frames(files):
             if os.path.isfile(outfile):
                 resultfiles.append(outfile)
     return resultfiles
+
+
+def on_frame_process(files):
+    import pathlib
+    from roop.core import batch_process_with_options
+    from roop.ProcessEntry import ProcessEntry
+    from roop.ProcessOptions import ProcessOptions
+    from ui.main import prepare_environment
+
+    if files is None:
+        return None
+
+    prepare_environment()
+    list_files_process : list[ProcessEntry] = []
+
+    for tf in files:
+        list_files_process.append(ProcessEntry(tf.name, 0,0, 0))
+
+    options = ProcessOptions("filter_c64", 0,  0, "all", 0, None, None, None, False)
+    batch_process_with_options(list_files_process, options, None)
+    outdir = pathlib.Path(roop.globals.output_path)
+    outfiles = [str(item) for item in outdir.rglob("*") if item.is_file()]
+    return outfiles
+
+
 

@@ -70,6 +70,7 @@ class ProcessMgr():
     'dmdnet'            : 'Enhance_DMDNet',
     'gpen'              : 'Enhance_GPEN',
     'restoreformer++'   : 'Enhance_RestoreFormerPPlus',
+    'filter_c64'        : 'Frame_C64'
     }
 
     def __init__(self, progress):
@@ -271,7 +272,8 @@ class ProcessMgr():
             'execution_threads': self.num_threads
         })
         progress.update(1)
-        self.progress_gradio((progress.n, self.total_frames), desc='Processing', total=self.total_frames, unit='frames')
+        if self.progress_gradio is not None:
+            self.progress_gradio((progress.n, self.total_frames), desc='Processing', total=self.total_frames, unit='frames')
 
 
     def on_no_face_action(self, frame:Frame):
@@ -293,6 +295,12 @@ class ProcessMgr():
 
 
     def process_frame(self, frame:Frame):
+        for p in self.processors:
+            #frameprocessor = next((x for x in self.processors if x.type == 'frame'), None)
+            if p.type == 'frame_colorizer':
+                Frame = p.Run(frame)
+                return Frame
+
         use_original_frame = 0
         skip_frame = 2
 

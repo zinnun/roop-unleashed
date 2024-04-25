@@ -531,7 +531,7 @@ def on_preview_mask(frame_num, files, clip_text, mask_engine):
         current_frame = get_image_frame(filename)
     if current_frame is None or mask_engine is None:
         return None
-    if mask_engine == "CLip2Seg":
+    if mask_engine == "Clip2Seg":
         mask_engine = "mask_clip2seg"
         if clip_text is None or len(clip_text) < 1:
           mask_engine = None
@@ -578,7 +578,7 @@ def translate_swap_mode(dropdown_text):
 def start_swap( enhancer, detection, keep_frames, wait_after_extraction, skip_audio, face_distance, blend_ratio,
                 selected_mask_engine, clip_text, processing_method, no_face_action, vr_mode, autorotate, num_swap_steps, imagemask, progress=gr.Progress()):
     from ui.main import prepare_environment
-    from roop.core import batch_process
+    from roop.core import batch_process_regular
     global is_processing, list_files_process
 
     if list_files_process is None or len(list_files_process) <= 0:
@@ -618,7 +618,7 @@ def start_swap( enhancer, detection, keep_frames, wait_after_extraction, skip_au
     roop.globals.video_quality = roop.globals.CFG.video_quality
     roop.globals.max_memory = roop.globals.CFG.memory_limit if roop.globals.CFG.memory_limit > 0 else None
 
-    batch_process(list_files_process, mask_engine, clip_text, processing_method == "In-Memory processing", imagemask, num_swap_steps, progress, SELECTED_INPUT_FACE_INDEX)
+    batch_process_regular(list_files_process, mask_engine, clip_text, processing_method == "In-Memory processing", imagemask, num_swap_steps, progress, SELECTED_INPUT_FACE_INDEX)
     is_processing = False
     outdir = pathlib.Path(roop.globals.output_path)
     outfiles = [str(item) for item in outdir.rglob("*") if item.is_file()]
