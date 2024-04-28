@@ -10,27 +10,30 @@ from roop.utilities import resolve_relative_path
 
 
 class FaceSwapInsightFace():
+    plugin_options:dict = None
     model_swap_insightface = None
-
 
     processorname = 'faceswap'
     type = 'swap'
 
 
-    def Initialize(self, devicename):
+    def Initialize(self, plugin_options:dict):
+        if self.plugin_options is not None:
+            if self.plugin_options["devicename"] != plugin_options["devicename"]:
+                self.Release()
+
+        self.plugin_options = plugin_options
         if self.model_swap_insightface is None:
             model_path = resolve_relative_path('../models/inswapper_128.onnx')
             graph = onnx.load(model_path).graph
             self.emap = onnx.numpy_helper.to_array(graph.initializer[-1])
-            devicename = devicename.replace('mps', 'cpu')
-            self.devicename = devicename
+            self.devicename = self.plugin_options["devicename"].replace('mps', 'cpu')
             self.input_mean = 0.0
             self.input_std = 255.0
             #cuda_options = {"arena_extend_strategy": "kSameAsRequested", 'cudnn_conv_algo_search': 'DEFAULT'}            
             sess_options = onnxruntime.SessionOptions()
             sess_options.enable_cpu_mem_arena = False            
             self.model_swap_insightface = onnxruntime.InferenceSession(model_path, sess_options, providers=roop.globals.execution_providers)
-            # replace Mac mps with cpu for the moment
 
 
     

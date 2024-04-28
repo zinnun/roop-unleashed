@@ -8,6 +8,7 @@ from roop.typing import Face, Frame, FaceSet
 from roop.utilities import resolve_relative_path
 
 class Enhance_RestoreFormerPPlus():
+    plugin_options:dict = None
     model_restoreformerpplus = None
     devicename = None
     name = None
@@ -16,11 +17,15 @@ class Enhance_RestoreFormerPPlus():
     type = 'enhance'
     
 
-    def Initialize(self, devicename:str):
+    def Initialize(self, plugin_options:dict):
+        if self.plugin_options is not None:
+            if self.plugin_options["devicename"] != plugin_options["devicename"]:
+                self.Release()
+
+        self.plugin_options = plugin_options
         if self.model_restoreformerpplus is None:
             # replace Mac mps with cpu for the moment
-            devicename = devicename.replace('mps', 'cpu')
-            self.devicename = devicename
+            self.devicename = self.plugin_options["devicename"].replace('mps', 'cpu')
             model_path = resolve_relative_path('../models/restoreformer_plus_plus.onnx')
             self.model_restoreformerpplus = onnxruntime.InferenceSession(model_path, None, providers=roop.globals.execution_providers)
             self.model_inputs = self.model_restoreformerpplus.get_inputs()

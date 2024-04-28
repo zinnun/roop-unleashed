@@ -9,6 +9,7 @@ from roop.utilities import resolve_relative_path
 
 
 class Enhance_GPEN():
+    plugin_options:dict = None
 
     model_gpen = None
     name = None
@@ -18,13 +19,17 @@ class Enhance_GPEN():
     type = 'enhance'
 
 
-    def Initialize(self, devicename):
+    def Initialize(self, plugin_options:dict):
+        if self.plugin_options is not None:
+            if self.plugin_options["devicename"] != plugin_options["devicename"]:
+                self.Release()
+
+        self.plugin_options = plugin_options
         if self.model_gpen is None:
             model_path = resolve_relative_path('../models/GPEN-BFR-512.onnx')
             self.model_gpen = onnxruntime.InferenceSession(model_path, None, providers=roop.globals.execution_providers)
             # replace Mac mps with cpu for the moment
-            devicename = devicename.replace('mps', 'cpu')
-            self.devicename = devicename
+            self.devicename = self.plugin_options["devicename"].replace('mps', 'cpu')
 
         self.name = self.model_gpen.get_inputs()[0].name
 

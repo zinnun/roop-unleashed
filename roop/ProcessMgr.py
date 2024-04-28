@@ -70,51 +70,54 @@ class ProcessMgr():
     'dmdnet'            : 'Enhance_DMDNet',
     'gpen'              : 'Enhance_GPEN',
     'restoreformer++'   : 'Enhance_RestoreFormerPPlus',
-    'filter_c64'        : 'Frame_C64'
+    'colorizer'         : 'Frame_Colorizer',
+    'filter_generic'    : 'Frame_Filter',
+    'removebg'          : 'Frame_Masking'
     }
 
     def __init__(self, progress):
         if progress is not None:
             self.progress_gradio = progress
 
+    def reuseOldProcessor(self, name:str):
+        for p in self.processors:
+            if p.processorname == name:
+                return p
+            
+        return None
+
 
     def initialize(self, input_faces, target_faces, options):
         self.input_face_datas = input_faces
         self.target_face_datas = target_faces
         self.options = options
+        devicename = get_device()
 
         roop.globals.g_desired_face_analysis=["landmark_3d_68", "landmark_2d_106","detection","recognition"]
         if options.swap_mode == "all_female" or options.swap_mode == "all_male":
             roop.globals.g_desired_face_analysis.append("genderage")
 
-        processornames = options.processors.split(",")
-        devicename = get_device()
-        if len(self.processors) < 1:
-            for pn in processornames:
-                classname = self.plugins[pn]
+        for p in self.processors:
+            newp = next((x for x in options.processors.keys() if x == p.processorname), None)
+            if newp is None:
+                p.release()
+                del p
+
+        newprocessors = []
+        for key, extoption in options.processors.items():
+            p = self.reuseOldProcessor(key)
+            if p is None:
+                classname = self.plugins[key]
                 module = 'roop.processors.' + classname
                 p = str_to_class(module, classname)
-                if p is not None:
-                    p.Initialize(devicename)
-                    self.processors.append(p)
-                else:
-                    print(f"Not using {module}")
-        else:
-            for i in range(len(self.processors) -1, -1, -1):
-                if not self.processors[i].processorname in processornames:
-                    self.processors[i].Release()
-                    del self.processors[i]
+            if p is not None:
+                extoption.update({"devicename": devicename})
+                p.Initialize(extoption)
+                newprocessors.append(p)
+            else:
+                print(f"Not using {module}")
+        self.processors = newprocessors
 
-            for i,pn in enumerate(processornames):
-                if i >= len(self.processors) or self.processors[i].processorname != pn:
-                    classname = self.plugins[pn]
-                    module = 'roop.processors.' + classname
-                    p = str_to_class(module, classname)
-                    if p is not None:
-                        p.Initialize(devicename)
-                        self.processors.insert(i, p)
-                    else:
-                        print(f"Not using {module}")
 
 
         if isinstance(self.options.imagemask, dict) and self.options.imagemask.get("layers") and len(self.options.imagemask["layers"]) > 0:
@@ -128,6 +131,13 @@ class ProcessMgr():
                 self.options.imagemask = cv2.cvtColor(self.options.imagemask, cv2.COLOR_GRAY2RGB)
             else:
                 self.options.imagemask = None
+
+        self.options.frame_processing = False
+        for p in self.processors:
+            if p.type.startswith("frame_"):
+                self.options.frame_processing = True
+
+            
  
 
 
@@ -156,7 +166,12 @@ class ProcessMgr():
             # Decode the byte array into an OpenCV image
             temp_frame = cv2.imdecode(np.fromfile(f, dtype=np.uint8), cv2.IMREAD_COLOR)
             if temp_frame is not None:
-                resimg = self.process_frame(temp_frame)
+                if self.options.frame_processing:
+                    for p in self.processors:
+                        frame = p.Run(temp_frame)
+                    resimg = frame
+                else:
+                    resimg = self.process_frame(temp_frame)
                 if resimg is not None:
                     i = source_files.index(f)
                     cv2.imwrite(target_files[i], resimg)
@@ -194,7 +209,12 @@ class ProcessMgr():
                 self.processed_queue[threadindex].put((False, None))
                 return
             else:
-                resimg = self.process_frame(frame)
+                if self.options.frame_processing:
+                    for p in self.processors:
+                        frame = p.Run(frame)
+                    resimg = frame
+                else:                            
+                    resimg = self.process_frame(frame)
                 self.processed_queue[threadindex].put((True, resimg))
                 del frame
                 progress()
@@ -295,12 +315,6 @@ class ProcessMgr():
 
 
     def process_frame(self, frame:Frame):
-        for p in self.processors:
-            #frameprocessor = next((x for x in self.processors if x.type == 'frame'), None)
-            if p.type == 'frame_colorizer':
-                Frame = p.Run(frame)
-                return Frame
-
         use_original_frame = 0
         skip_frame = 2
 
@@ -385,9 +399,6 @@ class ProcessMgr():
 
         if self.options.imagemask is not None and self.options.imagemask.shape == frame.shape:
             temp_frame = self.simple_blend_with_mask(temp_frame, frame, self.options.imagemask)
-
-        #if maskprocessor is not None:
-        #    temp_frame = self.process_mask(maskprocessor, frame, temp_frame)
         return num_faces_found, temp_frame
 
 

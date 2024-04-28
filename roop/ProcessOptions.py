@@ -1,7 +1,7 @@
 class ProcessOptions:
 
-    def __init__(self,processors, face_distance,  blend_ratio, swap_mode, selected_index, masking_text, imagemask, num_steps, show_face_area, show_mask=False):
-        self.processors = processors
+    def __init__(self, processordefines:dict, face_distance,  blend_ratio, swap_mode, selected_index, masking_text, imagemask, num_steps, show_face_area, show_mask=False):
+        self.processors = processordefines
         self.face_distance_threshold = face_distance
         self.blend_ratio = blend_ratio
         self.swap_mode = swap_mode

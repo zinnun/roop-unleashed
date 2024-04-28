@@ -19,7 +19,7 @@ THREAD_LOCK_DMDNET = threading.Lock()
 
 
 class Enhance_DMDNet():
-
+    plugin_options:dict = None
     model_dmdnet = None
     torchdevice = None
 
@@ -27,9 +27,14 @@ class Enhance_DMDNet():
     type = 'enhance'
 
 
-    def Initialize(self, devicename):
+    def Initialize(self, plugin_options:dict):
+        if self.plugin_options is not None:
+            if self.plugin_options["devicename"] != plugin_options["devicename"]:
+                self.Release()
+
+        self.plugin_options = plugin_options
         if self.model_dmdnet is None:
-            self.model_dmdnet = self.create(devicename)
+            self.model_dmdnet = self.create(self.plugin_options["devicename"])
             
 
     # temp_frame already cropped+aligned, bbox not

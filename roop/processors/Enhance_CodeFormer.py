@@ -13,17 +13,22 @@ from roop.utilities import resolve_relative_path
 
 class Enhance_CodeFormer():
     model_codeformer = None
-    devicename = None
+
+    plugin_options:dict = None
 
     processorname = 'codeformer'
     type = 'enhance'
     
 
-    def Initialize(self, devicename:str):
+    def Initialize(self, plugin_options:dict):
+        if self.plugin_options is not None:
+            if self.plugin_options["devicename"] != plugin_options["devicename"]:
+                self.Release()
+
+        self.plugin_options = plugin_options
         if self.model_codeformer is None:
             # replace Mac mps with cpu for the moment
-            devicename = devicename.replace('mps', 'cpu')
-            self.devicename = devicename
+            self.devicename = self.plugin_options["devicename"].replace('mps', 'cpu')
             model_path = resolve_relative_path('../models/CodeFormer/CodeFormerv0.1.onnx')
             self.model_codeformer = onnxruntime.InferenceSession(model_path, None, providers=roop.globals.execution_providers)
             self.model_inputs = self.model_codeformer.get_inputs()

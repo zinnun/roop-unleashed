@@ -162,20 +162,20 @@ def start() -> None:
 
 
 def get_processing_plugins(masking_engine):
-    processors = "faceswap"
+    processors = {  "faceswap": {}}
     if masking_engine is not None:
-        processors += f",{masking_engine}"
+        processors.update({masking_engine: {}})
     
     if roop.globals.selected_enhancer == 'GFPGAN':
-        processors += ",gfpgan"
+        processors.update({"gfpgan": {}})
     elif roop.globals.selected_enhancer == 'Codeformer':
-        processors += ",codeformer"
+        processors.update({"codeformer": {}})
     elif roop.globals.selected_enhancer == 'DMDNet':
-        processors += ",dmdnet"
+        processors.update({"dmdnet": {}})
     elif roop.globals.selected_enhancer == 'GPEN':
-        processors += ",gpen"
+        processors.update({"gpen": {}})
     elif roop.globals.selected_enhancer == 'Restoreformer++':
-        processors += ",restoreformer++"
+        processors.update({"restoreformer++": {}})
     return processors
 
 
