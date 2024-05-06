@@ -531,7 +531,7 @@ def on_preview_mask(frame_num, files, clip_text, mask_engine):
         current_frame = get_image_frame(filename)
     if current_frame is None or mask_engine is None:
         return None
-    if mask_engine == "CLip2Seg":
+    if mask_engine == "Clip2Seg":
         mask_engine = "mask_clip2seg"
         if clip_text is None or len(clip_text) < 1:
           mask_engine = None
