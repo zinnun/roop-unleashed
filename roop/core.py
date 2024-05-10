@@ -222,6 +222,7 @@ def batch_process_with_options(files:list[ProcessEntry], options, progress):
     process_mgr.initialize(roop.globals.INPUT_FACESETS, roop.globals.TARGET_FACES, options)
     roop.globals.keep_frames = False
     roop.globals.wait_after_extraction = False
+    roop.globals.skip_audio = False
     batch_process(files, True)
 
 

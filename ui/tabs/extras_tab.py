@@ -5,8 +5,9 @@ import roop.utilities as util
 import roop.util_ffmpeg as ffmpeg
 import roop.globals
 
-frame_processors_map = { 
-    "Colorize B/W Images (Deoldify)" : {"colorizer" : {"subtype": "deoldify"}},
+frame_filters_map = { 
+    "Colorize B/W Images (Deoldify Artistic)" : {"colorizer" : {"subtype": "deoldify_artistic"}},
+    "Colorize B/W Images (Deoldify Stable)" : {"colorizer" : {"subtype": "deoldify_stable"}},
     "Background remove" : {"removebg" : {"subtype": ""}},
     "Filter Stylize" : {"filter_generic" : {"subtype" : "stylize" }},
     "Filter Detail Enhance" : {"filter_generic" : {"subtype" : "detailenhance" }},
@@ -15,10 +16,19 @@ frame_processors_map = {
     "Filter C64" : {"filter_generic" : {"subtype" : "C64" }}
     }
 
+frame_upscalers_map = {
+    "ESRGAN x2" : {"upscale" : {"subtype": "esrganx2"}},
+    "ESRGAN x4" : {"upscale" : {"subtype": "esrganx4"}},
+    "LSDIR x4" : {"upscale" : {"subtype": "lsdirx4"}}
+}
+
 def extras_tab():
     filternames = ["None"]
-    for f in frame_processors_map.keys():
+    for f in frame_filters_map.keys():
         filternames.append(f)
+    upscalernames = ["None"]
+    for f in frame_upscalers_map.keys():
+        upscalernames.append(f)
 
     with gr.Tab("🎉 Extras"):
         with gr.Row():
@@ -55,8 +65,8 @@ def extras_tab():
         with gr.Row(variant='panel'):
             with gr.Accordion(label="Full frame processing", open=True):
                 with gr.Row(variant='panel'):
-                    upscalerselection = gr.Dropdown(["None", "Real esrgan x4 fp16"], value="None", label="Enhancer", interactive=True)
                     filterselection = gr.Dropdown(filternames, value="None", label="Colorizer/FilterFX", interactive=True)
+                    upscalerselection = gr.Dropdown(upscalernames, value="None", label="Enhancer", interactive=True)
                 with gr.Row(variant='panel'):
                     start_frame_process=gr.Button("Start processing")
 
@@ -69,7 +79,7 @@ def extras_tab():
     start_extract_frames.click(fn=on_extras_extract_frames, inputs=[files_to_process], outputs=[extra_files_output])
     start_join_videos.click(fn=on_join_videos, inputs=[files_to_process, extras_chk_encode], outputs=[extra_files_output])
     extras_create_video.click(fn=on_extras_create_video, inputs=[extras_images_folder, extras_fps, extras_chk_creategif], outputs=[extra_files_output])
-    start_frame_process.click(fn=on_frame_process, inputs=[files_to_process, filterselection], outputs=[extra_files_output])
+    start_frame_process.click(fn=on_frame_process, inputs=[files_to_process, filterselection, upscalerselection], outputs=[extra_files_output])
 
 
 def on_cut_video(files, cut_start_frame, cut_end_frame, reencode):
@@ -139,7 +149,7 @@ def on_extras_extract_frames(files):
     return resultfiles
 
 
-def on_frame_process(files, filterselection):
+def on_frame_process(files, filterselection, upscaleselection):
     import pathlib
     from roop.core import batch_process_with_options
     from roop.ProcessEntry import ProcessEntry
@@ -159,9 +169,12 @@ def on_frame_process(files, filterselection):
         list_files_process.append(ProcessEntry(tf.name, 0,0, 0))
 
     processoroptions = {}
-    filter = next((x for x in frame_processors_map.keys() if x == filterselection), None)
-    assert filter is not None
-    processoroptions.update(frame_processors_map[filter])
+    filter = next((x for x in frame_filters_map.keys() if x == filterselection), None)
+    if filter is not None:
+        processoroptions.update(frame_filters_map[filter])
+    filter = next((x for x in frame_upscalers_map.keys() if x == upscaleselection), None)
+    if filter is not None:
+        processoroptions.update(frame_upscalers_map[filter])
     options = ProcessOptions(processoroptions, 0,  0, "all", 0, None, None, None, False)
     batch_process_with_options(list_files_process, options, None)
     outdir = pathlib.Path(roop.globals.output_path)

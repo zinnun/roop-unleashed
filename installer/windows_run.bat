@@ -51,7 +51,17 @@ if "%conda_exists%" == "F" (
 @rem create the installer env
 if not exist "%INSTALL_ENV_DIR%" (
     echo Creating Conda Environment
-    call "%CONDA_ROOT_PREFIX%\_conda.exe" create --no-shortcuts -y -k --prefix "%INSTALL_ENV_DIR%" python=3.10 || ( echo. && echo Conda environment creation failed. && goto end )
+    call "%CONDA_ROOT_PREFIX%\_conda.exe" create --no-shortcuts -y -k --prefix "%INSTALL_ENV_DIR%" python=3.10 || ( echo. && echo ERROR: Conda environment creation failed. && goto end )
+    @rem check if conda environment was actually created
+    if not exist "%INSTALL_ENV_DIR%\python.exe" ( echo. && echo ERROR: Conda environment is empty. && goto end )
+    @rem activate installer env
+    call "%CONDA_ROOT_PREFIX%\condabin\conda.bat" activate "%INSTALL_ENV_DIR%" || ( echo. && echo ERROR: Miniconda hook not found. && goto end )
+    @rem Download insightface package
+    echo Downloading insightface package from %INSIGHTFACE_PACKAGE_URL% to %INSIGHTFACE_PACKAGE_PATH%
+    call curl -Lk "%INSIGHTFACE_PACKAGE_URL%" > "%INSIGHTFACE_PACKAGE_PATH%" || ( echo. && echo ERROR: Insightface package failed to download. && goto end )
+    @rem install insightface package using pip
+    echo Installing insightface package
+    call pip install "%INSIGHTFACE_PACKAGE_PATH%" || ( echo. && echo ERROR: Insightface package installation failed. && goto end )
 )
 
 @rem Download and install FFmpeg if not already installed
@@ -74,21 +84,11 @@ if "%ffmpeg_exists%" == "F" (
     echo Skipping FFmpeg installation as it is already available.
 )
 
-@rem Download insightface package
-echo Downloading insightface package from %INSIGHTFACE_PACKAGE_URL% to %INSIGHTFACE_PACKAGE_PATH%
-call curl -Lk "%INSIGHTFACE_PACKAGE_URL%" > "%INSIGHTFACE_PACKAGE_PATH%" || ( echo. && echo Insightface package failed to download. && goto end )
-
+@rem setup installer env
 @rem check if conda environment was actually created
 if not exist "%INSTALL_ENV_DIR%\python.exe" ( echo. && echo ERROR: Conda environment is empty. && goto end )
-
 @rem activate installer env
-call "%CONDA_ROOT_PREFIX%\condabin\conda.bat" activate "%INSTALL_ENV_DIR%" || ( echo. && echo Miniconda hook not found. && goto end )
-
-@rem install insightface package using pip
-echo Installing insightface package
-call pip install "%INSIGHTFACE_PACKAGE_PATH%" || ( echo. && echo Insightface package installation failed. && goto end )
-
-@rem setup installer env
+call "%CONDA_ROOT_PREFIX%\condabin\conda.bat" activate "%INSTALL_ENV_DIR%" || ( echo. && echo ERROR: Miniconda hook not found. && goto end )
 echo Launching roop unleashed
 call python installer.py %COMMANDLINE_ARGS%
 

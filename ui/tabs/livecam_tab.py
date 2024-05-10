@@ -21,7 +21,7 @@ def livecam_tab():
             with gr.Column():
                 bt_stop = gr.Button("⏹ Stop", variant='secondary', interactive=False)
             with gr.Column():
-                camera_num = gr.Slider(0, 2, value=0, label="Camera Number", step=1.0, interactive=True)
+                camera_num = gr.Slider(0, 8, value=0, label="Camera Number", step=1.0, interactive=True)
                 cb_obs = gr.Checkbox(label="Forward stream to virtual camera", interactive=True)
             with gr.Column():
                 dd_reso = gr.Dropdown(choices=["640x480","1280x720", "1920x1080"], value="1280x720", label="Fake Camera Resolution", interactive=True)

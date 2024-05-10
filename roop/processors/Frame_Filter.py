@@ -31,7 +31,7 @@ class Frame_Filter():
 
     def RenderC64Screen(self, image):
         # Simply round the color values to the nearest color in the palette
-        #image = cv2.resize(image,(320,200))
+        image = cv2.resize(image,(320,200))
         palette = self.c64_palette / 255.0  # Normalize palette
         img_normalized = image  / 255.0  # Normalize image
 
@@ -97,4 +97,9 @@ class Frame_Filter():
 
     def Release(self):
         pass
+
+    def getProcessedResolution(self, width, height):
+        if self.plugin_options["subtype"] == "C64":
+            return (320,200)
+        return None
 

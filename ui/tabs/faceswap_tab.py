@@ -30,7 +30,7 @@ selected_preview_index = 0
 is_processing = False            
 
 list_files_process : list[ProcessEntry] = []
-no_face_choices = ["Use untouched original frame","Retry rotated", "Skip Frame"]
+no_face_choices = ["Use untouched original frame","Retry rotated", "Skip Frame", "Skip Frame if no similar face"]
 
 current_video_fps = 50
 

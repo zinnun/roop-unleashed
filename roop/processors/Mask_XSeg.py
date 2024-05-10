@@ -15,7 +15,7 @@ class Mask_XSeg():
 
     model_xseg = None
 
-    processorname = 'xseg'
+    processorname = 'mask_xseg'
     type = 'mask'
 
 
@@ -54,6 +54,7 @@ class Mask_XSeg():
 
 
     def Release(self):
+        del self.model_xseg
         self.model_xseg = None
 
 

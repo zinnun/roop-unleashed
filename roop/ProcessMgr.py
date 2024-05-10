@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import psutil
 
+from enum import Enum
 from roop.ProcessOptions import ProcessOptions
 
 from roop.face_util import get_first_face, get_all_faces, rotate_image_180, rotate_anticlockwise, rotate_clockwise, clamp_cut_values
@@ -17,6 +18,15 @@ from queue import Queue
 from tqdm import tqdm
 from roop.ffmpeg_writer import FFMPEG_VideoWriter
 import roop.globals
+
+
+# Poor man's enum to be able to compare to int
+class eNoFaceAction():
+    USE_ORIGINAL_FRAME = 0
+    RETRY_ROTATED = 1
+    SKIP_FRAME = 2
+    SKIP_FRAME_IF_DISSIMILAR = 3
+
 
 
 def create_queue(temp_frame_paths: List[str]) -> Queue[str]:
@@ -72,7 +82,8 @@ class ProcessMgr():
     'restoreformer++'   : 'Enhance_RestoreFormerPPlus',
     'colorizer'         : 'Frame_Colorizer',
     'filter_generic'    : 'Frame_Filter',
-    'removebg'          : 'Frame_Masking'
+    'removebg'          : 'Frame_Masking',
+    'upscale'           : 'Frame_Upscale'
     }
 
     def __init__(self, progress):
@@ -100,7 +111,7 @@ class ProcessMgr():
         for p in self.processors:
             newp = next((x for x in options.processors.keys() if x == p.processorname), None)
             if newp is None:
-                p.release()
+                p.Release()
                 del p
 
         newprocessors = []
@@ -244,6 +255,16 @@ class ProcessMgr():
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+        processed_resolution = None
+        for p in self.processors:
+            if hasattr(p, 'getProcessedResolution'):
+                processed_resolution = p.getProcessedResolution(width, height)
+                print(f"Processed resolution: {processed_resolution}")
+        if processed_resolution is not None:
+            width = processed_resolution[0]
+            height = processed_resolution[1]
+
+
         self.total_frames = frame_count
         self.num_threads = threads
 
@@ -296,18 +317,6 @@ class ProcessMgr():
             self.progress_gradio((progress.n, self.total_frames), desc='Processing', total=self.total_frames, unit='frames')
 
 
-    def on_no_face_action(self, frame:Frame):
-        if roop.globals.no_face_action == 0:
-            return None, frame
-        elif roop.globals.no_face_action == 2:
-            return None, None
-
-        
-        faces = get_all_faces(frame)
-        if faces is not None:
-            return faces, frame
-        return None, frame
-      
 # https://github.com/deepinsight/insightface#third-party-re-implementation-of-arcface
 # https://github.com/deepinsight/insightface/blob/master/alignment/coordinate_reg/image_infer.py
 # https://github.com/deepinsight/insightface/issues/1350
@@ -315,32 +324,43 @@ class ProcessMgr():
 
 
     def process_frame(self, frame:Frame):
-        use_original_frame = 0
-        skip_frame = 2
-
         if len(self.input_face_datas) < 1 and not self.options.show_face_masking:
             return frame
         temp_frame = frame.copy()
         num_swapped, temp_frame = self.swap_faces(frame, temp_frame)
         if num_swapped > 0:
+            if roop.globals.no_face_action == eNoFaceAction.SKIP_FRAME_IF_DISSIMILAR:
+                if len(self.input_face_datas) > num_swapped:
+                    return None
             return temp_frame
-        if roop.globals.no_face_action == use_original_frame:
+        if roop.globals.no_face_action == eNoFaceAction.USE_ORIGINAL_FRAME:
             return frame
-        if roop.globals.no_face_action == skip_frame:
+        if roop.globals.no_face_action == eNoFaceAction.SKIP_FRAME:
             #This only works with in-mem processing, as it simply skips the frame.
             #For 'extract frames' it simply leaves the unprocessed frame unprocessed and it gets used in the final output by ffmpeg.
             #If we could delete that frame here, that'd work but that might cause ffmpeg to fail unless the frames are renamed, and I don't think we have the info on what frame it actually is?????
             #alternatively, it could mark all the necessary frames for deletion, delete them at the end, then rename the remaining frames that might work?
             return None
         else:
-            copyframe = frame.copy()
-            copyframe = rotate_image_180(copyframe)
-            temp_frame = copyframe.copy()
-            num_swapped, temp_frame = self.swap_faces(copyframe, temp_frame)
-            if num_swapped == 0:
-                return frame
-            temp_frame = rotate_image_180(temp_frame)
-            return temp_frame
+            return self.retry_rotated(frame)
+
+    def retry_rotated(self, frame):
+        copyframe = frame.copy()
+        copyframe = rotate_clockwise(copyframe)
+        temp_frame = copyframe.copy()
+        num_swapped, temp_frame = self.swap_faces(copyframe, temp_frame)
+        if num_swapped > 0:
+            return rotate_anticlockwise(temp_frame)
+        
+        copyframe = frame.copy()
+        copyframe = rotate_anticlockwise(copyframe)
+        temp_frame = copyframe.copy()
+        num_swapped, temp_frame = self.swap_faces(copyframe, temp_frame)
+        if num_swapped > 0:
+            return rotate_clockwise(temp_frame)
+        del copyframe
+        return frame
+        
 
 
     def swap_faces(self, frame, temp_frame):

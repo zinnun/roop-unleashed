@@ -3,7 +3,7 @@ import roop.globals
 import ui.globals
 import pyvirtualcam
 import threading
-import time
+import platform
 
 
 cam_active = False
@@ -18,7 +18,7 @@ def virtualcamera(streamobs, cam_num,width,height):
 
     #time.sleep(2)
     print('Starting capture')
-    cap = cv2.VideoCapture(cam_num, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(cam_num, cv2.CAP_DSHOW if platform.system() != 'Darwin' else cv2.CAP_AVFOUNDATION)
     if not cap.isOpened():
         print("Cannot open camera")
         cap.release()
