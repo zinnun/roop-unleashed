@@ -45,15 +45,16 @@ def virtualcamera(streamobs, cam_num,width,height):
     else:
         print(f'Not streaming to virtual camera!')
 
+    # always use xseg masking
+    options = ProcessOptions(get_processing_plugins("mask_xseg"), roop.globals.distance_threshold, roop.globals.blend_ratio,
+                              "all", 0, None, None, 1, False)
     while cam_active:
         ret, frame = cap.read()
         if not ret:
             break
 
         if len(roop.globals.INPUT_FACESETS) > 0:
-            options = ProcessOptions(get_processing_plugins(None), roop.globals.distance_threshold, roop.globals.blend_ratio,
-                              "all", 0, None, None, 1, False)
-            frame = live_swap(frame, "all", options)
+            frame = live_swap(frame, options)
         if cam:
             cam.send(frame)
             cam.sleep_until_next_frame()
