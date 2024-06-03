@@ -25,6 +25,7 @@ def prepare_environment():
         os.environ["TEMP"] = os.environ["TMP"] = os.path.abspath(os.path.join(os.getcwd(), "temp"))
     os.makedirs(os.environ["TEMP"], exist_ok=True)
     os.environ["GRADIO_TEMP_DIR"] = os.environ["TEMP"]
+    os.environ['GRADIO_ANALYTICS_ENABLED'] = '0'
 
 
 def run():
