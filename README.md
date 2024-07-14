@@ -65,6 +65,20 @@ Additional commandline arguments are currently unsupported and settings should b
 - Upgraded gradio
 
 
+**12.05.2024** v4.0.0
+
+- Bugfix: Unnecessary init every frame in live-cam
+- Bugfix: Installer downloading insightface package each run
+- Added xseg masking to live-cam
+- Added realesrganx2 to frame processors
+- Upgraded some requirements
+- Added subtypes and different model support to frame processors
+- Allow frame processors to change resolutions of videos
+- Different OpenCV Cap for MacOS Virtual Cam
+- Added complete frame processing to extras tab
+- Colorize, upscale and misc filters added
+
+
 **22.04.2024** v3.9.0
 
 - Bugfix: Face detection bounding box corrupt values at weird angles
