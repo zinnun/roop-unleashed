@@ -6,7 +6,7 @@ import psutil
 from enum import Enum
 from roop.ProcessOptions import ProcessOptions
 
-from roop.face_util import get_first_face, get_all_faces, rotate_image_180, rotate_anticlockwise, rotate_clockwise, clamp_cut_values
+from roop.face_util import get_first_face, get_all_faces, rotate_anticlockwise, rotate_clockwise, clamp_cut_values
 from roop.utilities import compute_cosine_distance, get_device, str_to_class
 import roop.vr_util as vr
 
@@ -18,6 +18,7 @@ from queue import Queue
 from tqdm import tqdm
 from roop.ffmpeg_writer import FFMPEG_VideoWriter
 import roop.globals
+
 
 
 # Poor man's enum to be able to compare to int
@@ -42,6 +43,7 @@ def pick_queue(queue: Queue[str], queue_per_future: int) -> List[str]:
         if not queue.empty():
             queues.append(queue.get())
     return queues
+
 
 
 class ProcessMgr():
@@ -317,11 +319,6 @@ class ProcessMgr():
             self.progress_gradio((progress.n, self.total_frames), desc='Processing', total=self.total_frames, unit='frames')
 
 
-# https://github.com/deepinsight/insightface#third-party-re-implementation-of-arcface
-# https://github.com/deepinsight/insightface/blob/master/alignment/coordinate_reg/image_infer.py
-# https://github.com/deepinsight/insightface/issues/1350
-# https://github.com/linghu8812/tensorrt_inference
-
 
     def process_frame(self, frame:Frame):
         if len(self.input_face_datas) < 1 and not self.options.show_face_masking:
@@ -541,17 +538,30 @@ class ProcessMgr():
 
             # img = vr.GetPerspective(frame, 90, theta, phi, 1280, 1280)  # Generate perspective image
 
-        fake_frame = None
-        aligned_img, M = align_crop(frame, target_face.kps, 128)
+
+        """ Code ported/adapted from Facefusion which borrowed the idea from Rope:
+            Kind of subsampling the cutout and aligned face image and faceswapping slices of it up to
+            the desired output resolution. This works around the current resolution limitations without using enhancers.
+        """
+        model_output_size = 128
+        subsample_size = self.options.subsample_size
+        subsample_total = subsample_size // model_output_size
+        aligned_img, M = align_crop(frame, target_face.kps, subsample_size)
+
         fake_frame = aligned_img
-        swap_frame = aligned_img
         target_face.matrix = M
+
         for p in self.processors:
             if p.type == 'swap':
-                if inputface is not None:
+                swap_result_frames = []
+                subsample_frames = self.implode_pixel_boost(aligned_img, model_output_size, subsample_total)
+                for sliced_frame in subsample_frames:
                     for _ in range(0,self.options.num_swap_steps):
-                        swap_frame = p.Run(inputface, target_face, swap_frame)
-                fake_frame = swap_frame
+                        sliced_frame = self.prepare_crop_frame(sliced_frame)
+                        sliced_frame = p.Run(inputface, target_face, sliced_frame)
+                        sliced_frame = self.normalize_swap_frame(sliced_frame)
+                    swap_result_frames.append(sliced_frame)
+                fake_frame = self.explode_pixel_boost(swap_result_frames, model_output_size, subsample_total, subsample_size)
                 scale_factor = 0.0
             elif p.type == 'mask':
                 fake_frame = self.process_mask(p, aligned_img, fake_frame)
@@ -560,8 +570,8 @@ class ProcessMgr():
 
         upscale = 512
         orig_width = fake_frame.shape[1]
-
-        fake_frame = cv2.resize(fake_frame, (upscale, upscale), cv2.INTER_CUBIC)
+        if orig_width != upscale:
+            fake_frame = cv2.resize(fake_frame, (upscale, upscale), cv2.INTER_CUBIC)
         mask_offsets = (0,0,0,0,1,20) if inputface is None else inputface.mask_offsets
 
         
@@ -672,6 +682,43 @@ class ProcessMgr():
         blur_size = tuple(2*i+1 for i in kernel_size)
         return cv2.GaussianBlur(img_matte, blur_size, 0)
 
+
+    def prepare_crop_frame(self, swap_frame):
+        model_type = 'inswapper'
+        model_mean = [0.0, 0.0, 0.0]
+        model_standard_deviation = [1.0, 1.0, 1.0]
+
+        if model_type == 'ghost':
+            swap_frame = swap_frame[:, :, ::-1] / 127.5 - 1
+        else:
+            swap_frame = swap_frame[:, :, ::-1] / 255.0
+        swap_frame = (swap_frame - model_mean) / model_standard_deviation
+        swap_frame = swap_frame.transpose(2, 0, 1)
+        swap_frame = np.expand_dims(swap_frame, axis = 0).astype(np.float32)
+        return swap_frame
+
+
+    def normalize_swap_frame(self, swap_frame):
+        model_type = 'inswapper'
+        swap_frame = swap_frame.transpose(1, 2, 0)
+
+        if model_type == 'ghost':
+            swap_frame = (swap_frame * 127.5 + 127.5).round()
+        else:
+            swap_frame = (swap_frame * 255.0).round()
+        swap_frame = swap_frame[:, :, ::-1]
+        return swap_frame
+
+    def implode_pixel_boost(self, aligned_face_frame, model_size, pixel_boost_total : int):
+        subsample_frame = aligned_face_frame.reshape(model_size, pixel_boost_total, model_size, pixel_boost_total, 3)
+        subsample_frame = subsample_frame.transpose(1, 3, 0, 2, 4).reshape(pixel_boost_total ** 2, model_size, model_size, 3)
+        return subsample_frame
+
+
+    def explode_pixel_boost(self, subsample_frame, model_size, pixel_boost_total, pixel_boost_size):
+        final_frame = np.stack(subsample_frame, axis = 0).reshape(pixel_boost_total, pixel_boost_total, model_size, model_size, 3)
+        final_frame = final_frame.transpose(2, 0, 3, 1, 4).reshape(pixel_boost_size, pixel_boost_size, 3)
+        return final_frame
 
     def process_mask(self, processor, frame:Frame, target:Frame):
         img_mask = processor.Run(frame, self.options.masking_text)

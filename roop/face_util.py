@@ -210,15 +210,18 @@ arcface_dst = np.array(
 )
 
 
-def estimate_norm(lmk, image_size=112, mode="arcface"):
+def estimate_norm(lmk, image_size=112):
     assert lmk.shape == (5, 2)
-    assert image_size % 112 == 0 or image_size % 128 == 0
     if image_size % 112 == 0:
         ratio = float(image_size) / 112.0
         diff_x = 0
-    else:
+    elif image_size % 128 == 0:
         ratio = float(image_size) / 128.0
         diff_x = 8.0 * ratio
+    elif image_size % 512 == 0:
+        ratio = float(image_size) / 512.0
+        diff_x = 32.0 * ratio
+
     dst = arcface_dst * ratio
     dst[:, 0] += diff_x
     tform = trans.SimilarityTransform()
@@ -230,7 +233,7 @@ def estimate_norm(lmk, image_size=112, mode="arcface"):
 
 # aligned, M = norm_crop2(f[1], face.kps, 512)
 def align_crop(img, landmark, image_size=112, mode="arcface"):
-    M = estimate_norm(landmark, image_size, mode)
+    M = estimate_norm(landmark, image_size)
     warped = cv2.warpAffine(img, M, (image_size, image_size), borderValue=0.0)
     return warped, M
 

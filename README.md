@@ -59,6 +59,12 @@ Additional commandline arguments are currently unsupported and settings should b
 
 ### Changelog
 
+**14.07.2024** v4.1.0
+
+- Added subsample upscaling to increase swap resolution
+- Upgraded gradio
+
+
 **22.04.2024** v3.9.0
 
 - Bugfix: Face detection bounding box corrupt values at weird angles

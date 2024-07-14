@@ -102,14 +102,13 @@ def on_settings_changed(evt: gr.SelectData):
 def clean_temp():
     from ui.main import prepare_environment
     
-    if not roop.globals.CFG.use_os_temp_folder:
-        shutil.rmtree(os.environ["TEMP"])
-    prepare_environment()
-   
     ui.globals.ui_input_thumbs.clear()
     roop.globals.INPUT_FACESETS.clear()
     roop.globals.TARGET_FACES.clear()
     ui.globals.ui_target_thumbs = []
+    if not roop.globals.CFG.use_os_temp_folder:
+        shutil.rmtree(os.environ["TEMP"])
+    prepare_environment()
     gr.Info('Temp Files removed')
     return None,None,None,None
 

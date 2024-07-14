@@ -26,6 +26,7 @@ execution_threads = None
 headless = None
 log_level = 'error'
 selected_enhancer = None
+subsample_size = 128
 face_swap_mode = None
 blend_ratio = 0.5
 distance_threshold = 0.65
