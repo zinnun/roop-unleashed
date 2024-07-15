@@ -562,6 +562,7 @@ class ProcessMgr():
                         sliced_frame = self.normalize_swap_frame(sliced_frame)
                     swap_result_frames.append(sliced_frame)
                 fake_frame = self.explode_pixel_boost(swap_result_frames, model_output_size, subsample_total, subsample_size)
+                fake_frame = fake_frame.astype(np.uint8)
                 scale_factor = 0.0
             elif p.type == 'mask':
                 fake_frame = self.process_mask(p, aligned_img, fake_frame)
