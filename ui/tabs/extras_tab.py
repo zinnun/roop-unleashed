@@ -62,6 +62,16 @@ def extras_tab():
                     with gr.Column():
                         extras_chk_creategif = gr.Checkbox(label='Create GIF from video', value=False)
                         extras_create_video=gr.Button("Create")
+                with gr.Row(variant='panel'):
+                    with gr.Column():
+                        gr.Markdown("""
+                                    # Create video from gif
+    """)
+                    with gr.Column():
+                        extras_video_fps = gr.Slider(minimum=0, maximum=120, value=0, label="Video FPS", step=1.0, interactive=True)
+                    with gr.Column():
+                        extras_create_video_from_gif=gr.Button("Create")
+
         with gr.Row(variant='panel'):
             with gr.Accordion(label="Full frame processing", open=True):
                 with gr.Row(variant='panel'):
@@ -78,7 +88,8 @@ def extras_tab():
     start_cut_video.click(fn=on_cut_video, inputs=[files_to_process, cut_start_time, cut_end_time, extras_chk_encode], outputs=[extra_files_output])
     start_extract_frames.click(fn=on_extras_extract_frames, inputs=[files_to_process], outputs=[extra_files_output])
     start_join_videos.click(fn=on_join_videos, inputs=[files_to_process, extras_chk_encode], outputs=[extra_files_output])
-    extras_create_video.click(fn=on_extras_create_video, inputs=[extras_images_folder, extras_fps, extras_chk_creategif], outputs=[extra_files_output])
+    extras_create_video.click(fn=on_extras_create_video, inputs=[files_to_process, extras_images_folder, extras_fps, extras_chk_creategif], outputs=[extra_files_output])
+    extras_create_video_from_gif.click(fn=on_extras_create_video_from_gif, inputs=[files_to_process, extras_video_fps], outputs=[extra_files_output])
     start_frame_process.click(fn=on_frame_process, inputs=[files_to_process, filterselection, upscalerselection], outputs=[extra_files_output])
 
 
@@ -115,17 +126,39 @@ def on_join_videos(files, chk_encode):
         gr.Error('Joining videos failed!')
     return resultfiles
 
-
-
-def on_extras_create_video(images_path,fps, create_gif):
-    util.sort_rename_frames(os.path.dirname(images_path))
-    destfilename = os.path.join(roop.globals.output_path, "img2video." + roop.globals.CFG.output_video_format)
-    ffmpeg.create_video('', destfilename, fps, images_path)
+def on_extras_create_video_from_gif(files,fps):
+    if files is None:
+        return None
+    
+    filenames = []
     resultfiles = []
+    for f in files:
+        filenames.append(f.name)
+
+    destfilename = os.path.join(roop.globals.output_path, "img2video." + roop.globals.CFG.output_video_format)
+    ffmpeg.create_video_from_gif(filenames[0], destfilename)
     if os.path.isfile(destfilename):
         resultfiles.append(destfilename)
-    else:
+    return resultfiles
+
+
+
+
+
+def on_extras_create_video(files, images_path,fps, create_gif):
+    if images_path is None:
         return None
+    resultfiles = []
+    if len(files) > 0 and util.is_video(files[0]) and create_gif:
+        destfilename = files[0]
+    else:                     
+        util.sort_rename_frames(os.path.dirname(images_path))
+        destfilename = os.path.join(roop.globals.output_path, "img2video." + roop.globals.CFG.output_video_format)
+        ffmpeg.create_video('', destfilename, fps, images_path)
+        if os.path.isfile(destfilename):
+            resultfiles.append(destfilename)
+        else:
+            return None
     if create_gif:
         gifname = util.get_destfilename_from_path(destfilename, './output', '.gif')
         ffmpeg.create_gif_from_video(destfilename, gifname)

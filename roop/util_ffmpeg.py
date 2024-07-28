@@ -78,7 +78,21 @@ def create_gif_from_video(video_path: str, gif_path):
     fps = util.detect_fps(video_path)
     frame = get_video_frame(video_path)
 
-    run_ffmpeg(['-i', video_path, '-vf', f'fps={fps},scale={frame.shape[0]}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse', '-loop', '0', gif_path])
+    scalex = frame.shape[0]
+    scaley = frame.shape[1]
+    if scalex >= scaley:
+        scaley = -1
+    else:
+        scalex = -1
+
+    run_ffmpeg(['-i', video_path, '-vf', f'fps={fps},scale={int(scalex)}:{int(scaley)}:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse', '-loop', '0', gif_path])
+
+
+def create_video_from_gif(gif_path: str, output_path):
+    fps = util.detect_fps(gif_path)
+    filter = """scale='trunc(in_w/2)*2':'trunc(in_h/2)*2',format=yuv420p,fps=10"""
+    run_ffmpeg(['-i', gif_path, '-vf', f'"{filter}"', '-movflags', '+faststart', '-shortest', output_path])
+
 
 
 def restore_audio(intermediate_video: str, original_video: str, trim_frame_start, trim_frame_end, final_video : str) -> None:
