@@ -27,7 +27,7 @@ from roop.face_util import extract_face_images
 from roop.ProcessEntry import ProcessEntry
 from roop.ProcessMgr import ProcessMgr
 from roop.ProcessOptions import ProcessOptions
-from roop.capturer import get_video_frame_total
+from roop.capturer import get_video_frame_total, release_video
 
 
 clip_text = None

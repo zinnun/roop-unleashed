@@ -20,8 +20,7 @@ def get_video_frame(video_path: str, frame_number: int = 0) -> Optional[Frame]:
     global current_video_path, current_capture, current_frame_total
 
     if video_path != current_video_path:
-        if current_capture is not None:
-            current_capture.release()
+        release_video()
 
         current_capture = cv2.VideoCapture(video_path)
         current_video_path = video_path
@@ -33,6 +32,13 @@ def get_video_frame(video_path: str, frame_number: int = 0) -> Optional[Frame]:
         return frame
     return None
 
+def release_video():
+    global current_capture    
+
+    if current_capture is not None:
+        current_capture.release()
+        current_capture = None
+        
 
 def get_video_frame_total(video_path: str) -> int:
     capture = cv2.VideoCapture(video_path)

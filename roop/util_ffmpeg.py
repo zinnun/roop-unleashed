@@ -73,19 +73,22 @@ def create_video(target_path: str, dest_filename: str, fps: float = 24.0, temp_d
 
 
 def create_gif_from_video(video_path: str, gif_path):
-    from roop.capturer import get_video_frame
+    from roop.capturer import get_video_frame, release_video
 
     fps = util.detect_fps(video_path)
     frame = get_video_frame(video_path)
+    release_video()
 
     scalex = frame.shape[0]
     scaley = frame.shape[1]
+
     if scalex >= scaley:
         scaley = -1
     else:
         scalex = -1
 
     run_ffmpeg(['-i', video_path, '-vf', f'fps={fps},scale={int(scalex)}:{int(scaley)}:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse', '-loop', '0', gif_path])
+
 
 
 def create_video_from_gif(gif_path: str, output_path):
